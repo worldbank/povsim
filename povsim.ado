@@ -29,6 +29,7 @@ program define povsim, rclass
 		adjustp(numlist max=1 >=0 <=100 integer)		/// adjustment of m due to re-ranking	
 		name(string)									/// Name of the file to be exported
 		folder(string)									/// Folder to export "generated" data
+		PASSthrough(numlist max=1 >0  <=2)				/// Passthrough
 		replace											/// Replace existing dataset
 		]
 
@@ -57,6 +58,13 @@ if ("`gic'" == "e") & "`efile'" == "" {
 if ("`poverty'" != "" & "`line'" == "") | ("`poverty'" == "" & "`line'" != "") {
 	disp in red "You should specify both, poverty and line."
 	error
+}
+
+if ("`passthrough'" != "") {
+	if (!inrange(`passthrough',0,2)) {
+		disp in red "The selected passthrough rate is outside of the permissible range"
+		error
+	}
 }
 
 * ==================================================================================================
@@ -149,7 +157,12 @@ if (`"`folder'"' == `""') 	local folder "`c(pwd)'"
 * Adjust option
 if ("`adjustp'" == "") local adjustp = 0
 
-	
+// Adjust growth by passthrough 
+if ("`passthrough'" != ""){
+	loc growth = `growth' * `passthrough'
+}
+
+
 * Keep relevant vars
 keep `welfare' `peso' `varmean' 
 
