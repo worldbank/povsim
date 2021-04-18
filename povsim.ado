@@ -16,7 +16,6 @@ program define povsim, rclass
 
 	syntax varname(numeric)					 			///
 		[fweight aweight iweight],						///
-		type(name)										/// This option define the type of data given in varname
 		gic(name)										/// Growth incidence curve: linear, convex, step and empirical 
 		growth(numlist max=1 >=-7.5  <=7.5)					/// Mean annual growth rate of entire distribution
 		premium(numlist max=1 >=-7.5 <=7.5)					/// Growth premium (M) – the gap in growth rate between bottom X and the mean 
@@ -24,10 +23,7 @@ program define povsim, rclass
 		[												///
 		bottom(numlist max=1 >=10 <=70 integer)			/// Bottom X % for which mean growth rate should be m larger than g
 		obs(numlist max=1 >=100 <=100000 integer)		///	Either expansion of observations (under ungroup option) or group them
-		ungroup 										/// Disaggregation of aggregated data using UNGROUP command
-		mean(numlist max=1 >0)							/// Welfare's mean value
 		varmean(varname numeric)						/// Welfare's mean variable
-		groupvar(varname numeric)						/// In grouped data, the percentile group it the welfare variable refers to 
 		poverty(string)									/// Estimate poverty figures and save them in "string" name
 		line(numlist >0)								/// Poverty line for poverty figures
 		adjustp(numlist max=1 >=0 <=100 integer)		/// adjustment of m due to re-ranking	
@@ -43,11 +39,6 @@ preserve
 * =========================================1.Error Messages======================================== 
 * ==================================================================================================
 
-* Data type
-if "`type'" != "welfare" & "`type'" != "share" & "`type'" != "sharecum" {
-	disp in red "You should specify either welfare, share or sharecum"
-	error
-}
 
 * GIC type
 if "`gic'" != "l" & "`gic'" != "c" & "`gic'" != "s" & "`gic'" != "e" {
@@ -55,29 +46,6 @@ if "`gic'" != "l" & "`gic'" != "c" & "`gic'" != "s" & "`gic'" != "e" {
 	error
 }
 
-* When specifying varname no Mean is needeed
-if ("`type'" == "welfare") & (("`mean'" != "") | ("`varmean'"!= "")) {
-	disp in red "When specifying welfare data no mean is needeed"
-	error
-}
-
-* When share or cumulated share are specified mean is needed
-if ("`type'" != "welfare") & (("`mean'" == "") & ("`varmean'"== "")) {
-	disp in red "When share or sharecum data are specified mean is needed"
-	error
-}
-
-* When share or cumulated share are specified mean is needed
-if ("`type'" != "welfare") & "`weight'" != "" {
-	disp in red "No weights allowed when using share or sharecum data."
-	error
-}
-
-* Welfare's mean value and welfare's mean variable are mutually exclusive
-if ("`mean'" != "") & ("`varmean'"!= "") {
-	disp in red "You should specify mean and varmean are mutually exclusive"
-	error
-}
 
 * Data to feed empirical estimation is mandatory
 if ("`gic'" == "e") & "`efile'" == "" {
@@ -94,6 +62,10 @@ if ("`poverty'" != "" & "`line'" == "") | ("`poverty'" == "" & "`line'" != "") {
 * ==================================================================================================
 * =========================================2. Set Default Options=================================== 
 * ==================================================================================================
+
+// We only allow for type welfare
+local welfare "`varlist'"
+local varlist ""
 
 * Type Empirical
 if "`gic'" == "e" {
@@ -130,22 +102,6 @@ if "`ungroup'" == "" {
 			net install dasp_p4, force
 		}
 	}
-}
-
-* Varlist
-if "`type'" == "welfare" {
-	local welfare "`varlist'"
-	local varlist ""
-}
-
-if "`type'" == "share" {
-	local share "`varlist'"
-	local varlist ""
-}
-
-if "`type'" == "sharecum" {
-	local sharecum "`varlist'"
-	local varlist ""
 }
 
 * Weight
@@ -193,9 +149,9 @@ if (`"`folder'"' == `""') 	local folder "`c(pwd)'"
 * Adjust option
 if ("`adjustp'" == "") local adjustp = 0
 
-
+	
 * Keep relevant vars
-keep `welfare' `share' `sharecum' `peso' `varmean' `groupvar'
+keep `welfare' `peso' `varmean' 
 
 /* -------------------------------------------------------------------------------------------------
 										Variable Creation
@@ -205,129 +161,102 @@ tempvar welfarenew /*welfare*/ sharenew /*Welfare's share*/ ftile /* Fractile*/ 
 tempfile disaggregation 
 
 
-	* Condition if type == welfare
-	if ("`welfare'" != "") { 
-		gen `welfarenew' = `welfare'
-		
-		* Erase missing values
-		drop if `welfarenew' == .
-		
-		* Count # of zero
-		count if `welfarenew' == 0
-		if `r(N)' > 0 dis in r "There are `r(N)' observations with zero `welfare'"
-		
-		* Count # of negative
-		count if `welfarenew' < 0
-		if `r(N)' > 0 dis in r "There are `r(N)' observations with negative `welfare'"
-	
-		* Gen Welfare's share
-		sum `welfarenew' `weight'
-		local mean `r(mean)'
-		
-		if ("`ungroup'" != "") {									// Option to generate share without generating deciles
-			local sum `r(sum)'
-			gen `sharenew' = `welfarenew'/`sum'
-		}
-		
-		if ("`ungroup'" == "") {									// Option to generate share generating Fractiles	
-			sort `welfarenew'
-			
-			* Sum weights
-			if "`peso'"!= "" gen shrpop = sum(`peso')
-			if "`peso'"== "" gen shrpop = _n
-			
-			if "`obs'"== "" {
-				gen `ftile' = _n									// if observation is not specified each obs is a fractile group
-				sum `welfarenew'
-				local sum `r(sum)'
-				gen `sharenew' = `welfarenew'/`sum'				
-				
-				if "`peso'"!= "" {
-					replace `ftile' = shrpop/shrpop[_N]	
-					gen toerase = `welfarenew'*`peso'
-					sum `welfarenew' `weight'
-					local sum `r(sum)'
-					replace `sharenew' = toerase/`sum'	
-					
-				}
-			}
-			if "`obs'"!= "" {
-				replace shrpop = shrpop/shrpop[_N]
+gen `welfarenew' = `welfare'
 
-				* Identify fractile of welfare
-				gen `ftile' = .
-				forvalues j = 1(1)`expansion' {
-					replace `ftile' = `j' if shrpop > (`j'-1)*(1/`expansion') & shrpop <= `j'*(1/`expansion')
-				} 
-				collapse (mean)`welfarenew' `weight', by(`ftile') 	// Generate average income by Fractile
+* Erase missing values
+drop if `welfarenew' == .
+
+* Count # of zero
+count if `welfarenew' == 0
+if `r(N)' > 0 dis in r "There are `r(N)' observations with zero `welfare'"
+
+* Count # of negative
+count if `welfarenew' < 0
+if `r(N)' > 0 dis in r "There are `r(N)' observations with negative `welfare'"
+
+* Gen Welfare's share
+sum `welfarenew' `weight'
+local mean `r(mean)'
+
+if ("`ungroup'" != "") {									// Option to generate share without generating deciles
+	local sum `r(sum)'
+	gen `sharenew' = `welfarenew'/`sum'
+}
+
+if ("`ungroup'" == "") {									// Option to generate share generating Fractiles	
+	sort `welfarenew'
+	
+	* Sum weights
+	if "`peso'"!= "" gen shrpop = sum(`peso')
+	if "`peso'"== "" gen shrpop = _n
+	
+	if "`obs'"== "" {
+		gen `ftile' = _n									// if observation is not specified each obs is a fractile group
+		sum `welfarenew'
+		local sum `r(sum)'
+		gen `sharenew' = `welfarenew'/`sum'				
+		
+		if "`peso'"!= "" {
+			replace `ftile' = shrpop/shrpop[_N]	
+			gen toerase = `welfarenew'*`peso'
+			sum `welfarenew' `weight'
+			local sum `r(sum)'
+			replace `sharenew' = toerase/`sum'	
 			
-				sum `welfarenew'
-				local sum `r(sum)'
-				gen `sharenew' = `welfarenew'/`sum'
-			}
 		}
 	}
+	if "`obs'"!= "" {
+		replace shrpop = shrpop/shrpop[_N]
+
+		* Identify fractile of welfare
+		gen `ftile' = .
+		forvalues j = 1(1)`expansion' {
+			replace `ftile' = `j' if shrpop > (`j'-1)*(1/`expansion') & shrpop <= `j'*(1/`expansion')
+		} 
+		collapse (mean)`welfarenew' `weight', by(`ftile') 	// Generate average income by Fractile
 	
-	* Condition if type == share
-	if ("`share'" != "") {
-		drop if `share' == .
-		gen `sharenew' = `share'
+		sum `welfarenew'
+		local sum `r(sum)'
+		gen `sharenew' = `welfarenew'/`sum'
 	}
-	
-	* Condition if type == sharecum
-	if ("`sharecum'" == "") {										// This condition holds for types welfare and share
-		sort `sharenew'
-		gen `sharecumnew' = sum(`sharenew')
-	}
-	
-	if ("`sharecum'" != "") {
-		drop if `sharecum' == .
-		gen `sharecumnew' = `sharecum'
-		sort `sharecumnew'
-		gen `sharenew' = `sharecumnew' in 1
-		replace `sharenew' = `sharecumnew' - `sharecumnew'[_n-1] if `sharenew' == .
-	}
-	
-	* Generate fractile
-	if ("`welfare'" != "") sort `welfarenew'
-	if ("`welfare'" == "") sort `sharecumnew'
+}
+
+		
+* Generate fractile
+sort `welfarenew'
+count
+local obse `r(N)'
+
+
+* Ungroup condition
+if "`ungroup'" == "" {
+	gen meanM0 =  `welfarenew'
+	sort meanM0
+	gen mtile0 = _n																	
+
+}
+
+if "`ungroup'" != "" {											// Disaggregation of aggregated data
+	gen `ftile' = _n/`obse'
+	ungroup `ftile' `sharecumnew', fname(`disaggregation') nobs(`expansion') dist(lnorm)
+
+	use `disaggregation', clear
+	sort _y
 	count
 	local obse `r(N)'
-
+	gen mtile0 = _n
+	ren _y share
+	replace share = share/`obse'								// Change compared to povcal version
 	
-	* Ungroup condition
-	if "`ungroup'" == "" {
-		if "`welfare'" != "" gen meanM0 =  `welfarenew'
-		if "`welfare'" == "" gen meanM0 = `obse' * `sharenew' * `mean'										
-		sort meanM0
-		gen mtile0 = _n																	
-	
-	}
-
-	if "`ungroup'" != "" {											// Disaggregation of aggregated data
-		gen `ftile' = _n/`obse'
-			if "`groupvar'" != "" { 
-			replace `ftile' = `groupvar'
-			}
-		ungroup `ftile' `sharecumnew', fname(`disaggregation') nobs(`expansion') dist(lnorm)
-
-		use `disaggregation', clear
-		sort _y
-		count
-		local obse `r(N)'
-		gen mtile0 = _n
-		ren _y share
-		replace share = share/`obse'								// Change compared to povcal version
-		
-		gen meanM0 = `obse' * share * `mean'		
-		keep mtile0 meanM0
-	}
-	if "`obs'" == "" & "`weight'"!= "" keep meanM0 mtile0 `peso'
-	else {
-		keep meanM0 mtile0
-		local weight "" 
-	}
-	order meanM0 mtile0
+	gen meanM0 = `obse' * share * `mean'		
+	keep mtile0 meanM0
+}
+if "`obs'" == "" & "`weight'"!= "" keep meanM0 mtile0 `peso'
+else {
+	keep meanM0 mtile0
+	local weight "" 
+}
+order meanM0 mtile0
 	
 
 * ==================================================================================================
@@ -410,8 +339,6 @@ noi dis as text "{hline 60}"
 
 noi di as text _new  "Growth Incidence Curve: {cmd: `type'}"
 if ("`varlist'" != "") noi di as text _new  "Welfare variable: {cmd: `varlist'}"
-if ("`share'" != "") noi di as text _new  "Share variable: {cmd: `share'}"
-if ("`sharecum'" != "") noi di as text _new  "Cum. Share variable: {cmd: `sharecum'}"
 noi di as text _new  "Bottom group: {cmd: `bottom'(%)}"
 noi di as text _new  "Growth: {cmd: `growth'}"
 noi di as text _new  "Growth premium: {cmd: `premium'}"
