@@ -17,7 +17,7 @@ program define povsim, rclass
 	syntax varname(numeric)					 			///
 		[fweight aweight iweight],						///
 		gic(name)										/// Growth incidence curve: linear, convex, step and empirical 
-		growth(numlist max=1 >=-7.5  <=7.5)					/// Mean annual growth rate of entire distribution
+		growth(numlist >=-7.5  <=7.5)									/// Mean annual growth rate of entire distribution or growth per repetititon
 		premium(numlist max=1 >=-7.5 <=7.5)					/// Growth premium (M) – the gap in growth rate between bottom X and the mean 
 		repetitions(numlist max=1 >0 <=50 integer)		/// Numbers of periods (years) to repeat the simulation.
 		[												///
@@ -60,12 +60,15 @@ if ("`poverty'" != "" & "`line'" == "") | ("`poverty'" == "" & "`line'" != "") {
 	error
 }
 
-if ("`passthrough'" != "") {
-	if (!inrange(`passthrough',0,2)) {
-		disp in red "The selected passthrough rate is outside of the permissible range"
+* growth vector N itemes != repetitions
+if wordcount("`growth'") > 1 {
+	noi di as result "Growth is a vector"
+	if wordcount("`growth'") != `repetitions'{
+		noi di as error "The growth vector must have the same number of entries as the number of repetitions"
 		error
 	}
 }
+
 
 * ==================================================================================================
 * =========================================2. Set Default Options=================================== 
@@ -157,11 +160,22 @@ if (`"`folder'"' == `""') 	local folder "`c(pwd)'"
 * Adjust option
 if ("`adjustp'" == "") local adjustp = 0
 
-// Adjust growth by passthrough 
-if ("`passthrough'" != ""){
-	loc growth = `growth' * `passthrough'
+
+// default of passthrough
+loc growth0 "`growth'"	// store the original growth vector
+if ("`passthrough'" == "") loc passthrough = 1
+
+
+// Addjust growth if vector & adjust growth by passthrough 
+loc j = 0
+foreach grw in `growth' {
+	loc ++j
+	loc growth`j' = `grw' * `passthrough'
+	loc growthnew "`growthnew' `growth`j''"
 }
 
+loc grw_lvl = `j' // store the number of growth values
+loc j 
 
 * Keep relevant vars
 keep `welfare' `peso' `varmean' 
@@ -282,21 +296,21 @@ order meanM0 mtile0
 ===========================================================================*/
 
 if ("`gic'" == "l") {
-	povsim_linear, growth(`growth') premium(`premium') bottom(`bottom') repetitions(`repetitions') weight(`weight') peso(`peso') folder(`folder') name(`name') adjustp(`adjustp') `replace'
+	povsim_linear, growth(`growthnew') premium(`premium') bottom(`bottom') repetitions(`repetitions') weight(`weight') peso(`peso') folder(`folder') name(`name') adjustp(`adjustp') `replace'
 }
 
 /*===========================================================================
 							3.2 Convex GIC									
 ===========================================================================*/
 if ("`gic'" == "c") {
-	povsim_convex, growth(`growth') premium(`premium') bottom(`bottom') repetitions(`repetitions') weight(`weight') peso(`peso') folder(`folder') name(`name') adjustp(`adjustp') `replace'
+	povsim_convex, growth(`growthnew') premium(`premium') bottom(`bottom') repetitions(`repetitions') weight(`weight') peso(`peso') folder(`folder') name(`name') adjustp(`adjustp') `replace'
 }
 
 /*===========================================================================
 							3.3 Step Function GIC						
 ===========================================================================*/
 if ("`gic'" == "s") {
-	povsim_sfunction, growth(`growth') premium(`premium') bottom(`bottom') repetitions(`repetitions') weight(`weight') peso(`peso') folder(`folder') name(`name') adjustp(`adjustp')`replace'
+	povsim_sfunction, growth(`growthnew') premium(`premium') bottom(`bottom') repetitions(`repetitions') weight(`weight') peso(`peso') folder(`folder') name(`name') adjustp(`adjustp')`replace'
 }
 
 /*===========================================================================
@@ -367,9 +381,13 @@ if "`poverty'" !=  "" {
 if "`name'" !=  "" noi di as text _new  "Name of simulated data: {cmd: `name'} " `"{browse "`folder'\\`name'.dta":{space 5}Open }"'
 if "`poverty'" !=  "" noi di as text _new  "Name of poverty data: {cmd: `poverty'} " `"{browse "`folder'\\`poverty'.dta":{space 5}Open }"'
 if "`name'" !=  "" | "`poverty'" !=  "" noi di as text _new  "Path: {cmd: `folder'}" 
-if abs(`premium' - $g40fi+`growth' )>0.01 noi di in red "Warning: the difference between the desired premium and the simulated one is greater than 0.01"
-noi di as text "{hline 5}{c +}{hline 55}"	
 
+loc j = 0
+foreach grwth in `growthnew' {
+	loc ++j
+		if abs(`premium' - $g40fi+`grwth' )>0.01 noi di in red "Warning: the difference between the desired premium and the simulated one is greater than 0.01 for growth item `j' "
+		noi di as text "{hline 5}{c +}{hline 55}"	
+}
 
 * Return information
 if "`poverty'" !=  "" {
@@ -381,20 +399,23 @@ if "`poverty'" !=  "" {
 	}
 }
 
+loc j = 0
+foreach grwth in `growthnew' {
+	loc ++j
+	local premium_actual`j' : display %5.4f $g40fi-`grwth' 	                
+	return scalar premium_actual`j' = `premium_actual`j''	
+	return scalar growth`j' = `grwth'
+}
 
-local premium_actual : display %5.4f $g40fi-`growth' 
 local bfi : display %5.4f $g40fi 
 local tfi : display %5.4f $g60fi 
- 
-local top = 100 - `bottom'                  
-return scalar premium_actual = `premium_actual'
+
+local top = 100 - `bottom'  
 return scalar gbottomfi = `bfi'               
 return scalar gtopfi = `tfi'            
 return scalar repetitions = `repetitions'
 return scalar premium = `premium'
-return scalar growth = `growth'
 return scalar bottom = `bottom'
-
 
 restore
 }

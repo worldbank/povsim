@@ -41,6 +41,12 @@ if "`weight'" != "" {
 }
 else gen shrpop0 = mtile0/`obs'
 
+// separate growth
+tokenize "`growth'"
+loc j = 0
+forv j = 1(1)`repetitions'{
+	loc growth`j' = `1'
+}
 
 
 * Tempfile for loop
@@ -65,10 +71,10 @@ while `gap' > 0.0001 & `round'<`adjustp' {
 		global yi_sum_top = r(sum)		// Bottom sum
 		
 		* Generate gi_bottom
-		global gi_bottom = (`growth' + `premium')
+		global gi_bottom = (`growth`j'' + `premium')
 		
 		* Generate gi_top
-		global gi_top = `growth' + (`premium'*(1 - ($yi_sum /$yi_sum_top)))
+		global gi_top = `growth`j'' + (`premium'*(1 - ($yi_sum /$yi_sum_top)))
 		
 		* Generate growth 
 		generate gi = .
@@ -111,7 +117,7 @@ while `gap' > 0.0001 & `round'<`adjustp' {
 	global g60fi=($mean60_19/$mean60_0)^(1/`repetitions') -1
 	
 	*Actual m
-	global b = $g40fi- `growth'
+	global b = $g40fi- `growth`j''
 	
 	*Adjust the m as a function of the gap: 
 	*The loop runs as long as the gap is > 0.0001=0.01%

@@ -43,6 +43,13 @@ if "`weight'" != "" {
 else gen shrpop0 = mtile0/`obs'
 
 
+// separate growth
+tokenize "`growth'"
+loc j = 0
+forv j = 1(1)`repetitions'{
+	loc growth`j' = `1'
+}
+
 * Tempfile for loop
 tempfile temp
 save `temp', replace
@@ -53,7 +60,9 @@ while `gap' > `threshold' & `round'< `adjustp' {
 	local ++round
 	use `temp', replace
 	
+	loc j = 0
 	foreach n of numlist 1(1)`repetitions' {	
+		loc ++j
 		local last = `n' - 1
 		
 		* Combination between income and rank (piyi) (this variable times theta gives the amount taxed to each fractile)
@@ -76,7 +85,8 @@ while `gap' > `threshold' & `round'< `adjustp' {
 		gen theta = `premium'/(($piyi_sum/$yi_sum) - ($piyi_sum_bottom/$yi_sum_bottom))
 		
 		* Marginal transfer rate (delta)
-		gen delta = `growth' + ($piyi_sum/$yi_sum)*(theta)
+		noi di as result  "AAA `growth`j''"
+		gen delta = `growth`j'' + ($piyi_sum/$yi_sum)*(theta)
 
 		*Generate new incomes: (final mean income y*)
 		gen meanM`n' = (1 + delta) * meanM`last' - theta * meanM`last'*mtile`last'
