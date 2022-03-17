@@ -18,9 +18,11 @@ program define povsim, rclass
 		[fweight aweight iweight],						///
 		gic(name)										/// Growth incidence curve: linear, convex, step and empirical 
 		growth(numlist >=-7.5  <=7.5)									/// Mean annual growth rate of entire distribution or growth per repetititon
-		premium(numlist max=1 >=-7.5 <=7.5)					/// Growth premium (M) – the gap in growth rate between bottom X and the mean 
-		repetitions(numlist max=1 >0 <=50 integer)		/// Numbers of periods (years) to repeat the simulation.
+		REPetitions(numlist max=1 >0 <=50 integer)		/// Numbers of periods (years) to repeat the simulation.
 		[												///
+		premium(numlist max=1 >=-7.5 <=7.5)					/// Growth premium (M) – the gap in growth rate between bottom X and the mean 
+		gini(numlist max=1)								/// gini change
+		PASSthrough(numlist max=1 >0  <=2)				/// Passthrough
 		bottom(numlist max=1 >=10 <=70 integer)			/// Bottom X % for which mean growth rate should be m larger than g
 		obs(numlist max=1 >=100 <=100000 integer)		///	Either expansion of observations (under ungroup option) or group them
 		varmean(varname numeric)						/// Welfare's mean variable
@@ -29,7 +31,6 @@ program define povsim, rclass
 		adjustp(numlist max=1 >=0 <=100 integer)		/// adjustment of m due to re-ranking	
 		name(string)									/// Name of the file to be exported
 		folder(string)									/// Folder to export "generated" data
-		PASSthrough(numlist max=1 >0  <=2)				/// Passthrough
 		replace											/// Replace existing dataset
 		]
 
@@ -303,7 +304,7 @@ if ("`gic'" == "l") {
 							3.2 Convex GIC									
 ===========================================================================*/
 if ("`gic'" == "c") {
-	povsim_convex, growth(`growthnew') premium(`premium') bottom(`bottom') repetitions(`repetitions') weight(`weight') peso(`peso') folder(`folder') name(`name') adjustp(`adjustp') `replace'
+	povsim_convex, growth(`growthnew') premium(`premium') gini(`gini') bottom(`bottom') repetitions(`repetitions') weight(`weight') peso(`peso') folder(`folder') name(`name') adjustp(`adjustp') `replace'
 }
 
 /*===========================================================================
@@ -353,7 +354,7 @@ if "`poverty'" !=  "" {
 * ==================================================================================================
 * =========================================4. Display Information===================================
 * ==================================================================================================
-
+/*
 if "`gic'" == "l" local type "Linear"
 if "`gic'" == "c" local type "Convex"
 if "`gic'" == "s" local type "Step Function"
@@ -416,7 +417,7 @@ return scalar gtopfi = `tfi'
 return scalar repetitions = `repetitions'
 return scalar premium = `premium'
 return scalar bottom = `bottom'
-
+*/
 restore
 }
 		

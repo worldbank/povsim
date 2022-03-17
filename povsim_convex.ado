@@ -18,6 +18,7 @@ program define povsim_convex, rclass
 		peso(string)									///
 		growth(numlist)									/// Mean annual growth rate of entire distribution
 		premium(numlist)								/// Growth premium (M) – the gap in growth rate between bottom X and the mean 
+		gini(numlist)									/// change in gini
 		bottom(numlist)									/// Bottom X % for which mean growth rate should be m larger than g, by default 
 		repetitions(numlist)							/// Numbers of periods (years) to repeat the simulation.
 		folder(string)									/// Folder to export "generated" data
@@ -27,12 +28,17 @@ program define povsim_convex, rclass
 		]
 qui{
 * Locals
+loc gini 0.05
+
 local gap = 0.02					// starting value for the loop; could be anything? 
-local top = 100 - `bottom'
 count
 local obs `r(N)'
-local dpremium = `premium'
-local bottom = (`bottom'/100)
+
+if ("`gini'" == "" ){
+	local top = 100 - `bottom'
+	local dpremium = `premium'
+	local bottom = (`bottom'/100)
+}
 
 if "`weight'" != "" {
 	sort meanM0
@@ -70,14 +76,20 @@ while `gap' > 0.0001 & `round'< `adjustp' {
 		global yi_sum = r(sum)				// Overall sum
 		global yi_mean = r(mean)			// Overall mean
 		
-		sum meanM`last'	`weight' if shrpop`last' <= `bottom'
-		global yi_sum_bottom = r(sum)		// Bottom sum
+		if ("`premium'" != "") {
+			sum meanM`last'	`weight' if shrpop`last' <= `bottom'
+			global yi_sum_bottom = r(sum)		// Bottom sum
+		}
 		
 		* Generate Alpha
-		global alpha = `premium' /((1 + `growth')*(((100*`bottom'*$yi_sum)/(100 * $yi_sum_bottom))-1))
-		
+		if ("`gini'" != "" ){
+			global alpha = -`gini'
+		}
+		else {
+			global alpha = `premium' /((1 + `growth')*(((100*`bottom'*$yi_sum)/(100 * $yi_sum_bottom))-1))
+		}		
 		*Generate new incomes:
-		gen meanM`n'=(1 + `growth`j'')*(((1 - $alpha) * meanM`last' )+ ($alpha * $yi_mean))
+		gen meanM`n'=(1 + `growth`j'')*(((1 - $alpha ) * meanM`last' )+ ($alpha * $yi_mean ))
 		
 		*New shares
 		* gen share=meanM`n'/(10000*mean*((1+ghist)^`n'))
@@ -94,46 +106,58 @@ while `gap' > 0.0001 & `round'< `adjustp' {
 		else gen shrpop`n' = mtile`n'/`obs'
 	}
 		
-	*Generate average growth rates: 
-	*Bottom X% 
-	sum meanM0 `weight'	if shrpop0 <= `bottom'
-	global mean40_0 = r(mean)
+	if ("`gini'" != ""){
 	
-	sum meanM`repetitions' `weight' if shrpop`repetitions' <= `bottom'
-	global mean40_19 = r(mean)
-	global g40fi = ($mean40_19/$mean40_0)^(1/`repetitions') -1
+		*Generate average growth rates: 
+		*Bottom X% 
+		sum meanM0 `weight'	if shrpop0 <= `bottom'
+		global mean40_0 = r(mean)
+		
+		sum meanM`repetitions' `weight' if shrpop`repetitions' <= `bottom'
+		global mean40_19 = r(mean)
+		global g40fi = ($mean40_19 / $mean40_0 )^(1/`repetitions') -1
+		
+		*Top X%
+		sum meanM0 `weight' if shrpop0 > `bottom' & !mi(shrpop0)
+		global mean60_0 = r(mean)
+		
+		sum meanM`repetitions' `weight' if shrpop`repetitions' > `bottom' & !mi(shrpop`repetitions')
+		global mean60_19 = r(mean)
+		global g60fi=($mean60_19 / $mean60_0 )^(1/`repetitions') -1	
 	
-	*Top X%
-	sum meanM0 `weight' if shrpop0 > `bottom' & !mi(shrpop0)
-	global mean60_0 = r(mean)
-	
-	sum meanM`repetitions' `weight' if shrpop`repetitions' > `bottom' & !mi(shrpop`repetitions')
-	global mean60_19 = r(mean)
-	global g60fi=($mean60_19/$mean60_0)^(1/`repetitions') -1
-	
-	*Actual m
-	global b = $g40fi- `growth`j''
-	
-	*Adjust the m as a function of the gap: 
-	*The loop runs as long as the gap is > 0.0001=0.01%
-	local gap`round' = `gap'
-	local gap = `dpremium' - $b
+		*Actual m
+		global b = $g40fi- `growth`j''
+		
+		*Adjust the m as a function of the gap: 
+		*The loop runs as long as the gap is > 0.0001=0.01%
+		local gap`round' = `gap'
+		local gap = `dpremium' - $b
 
-	*Adjust the m as a function of the gap: 	
-	if `adjustp' > 0 {
-		if `round'>0 {
-			if `gap`round'' >= `gap' local premium = `premium'+2*`gap'
-			
-			if `gap`round'' < `gap' local premium = `premium'-2*`gap'
-			
+		*Adjust the m as a function of the gap: 	
+		if `adjustp' > 0 {
+			if `round'>0 {
+				if `gap`round'' >= `gap' local premium = `premium'+2*`gap'
+				
+				if `gap`round'' < `gap' local premium = `premium'-2*`gap'
+				
+			}
+			if `round' == 0 local premium = `premium'+`gap'
 		}
-		if `round' == 0 local premium = `premium'+`gap'
+	}
+	else{
+		continue, break
 	}
 }
 
 drop shrpop*
-local bottom = 100 - `top'
-gen premium = `premium'
+
+if ("`gini'" == ""){
+	local bottom = 100 - `top'
+	gen premium = `premium'
+}
+else {
+	gen gini_change = `gini'
+}
 gen g`bottom'fi = $g40fi
 gen g`top'fi = $g60fi
 
