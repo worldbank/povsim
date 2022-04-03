@@ -28,7 +28,7 @@ program define povsim_convex, rclass
 		]
 qui{
 * Locals
-loc gini 0.05
+*loc gini 0.05
 
 local gap = 0.02					// starting value for the loop; could be anything? 
 count
