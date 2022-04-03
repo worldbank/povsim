@@ -33,29 +33,23 @@ Sections are presented under the following headings:
 
 {syntab:{help povsim##mandatory:Mandatory}}
 
-{synopt:{opt type(welfare|share|sharecum)}} The type of data contained in {it:varname}. Use {it:welfare} for micro/survey data.{p_end}
+{synopt:{opt gic(l|c)}} Growth incidence curve: linear{it:(l)} or convex{it:(c)}.{p_end}
 
-{synopt:{opt gic(l|c|s)}} Growth incidence curve: linear{it:(l)}, convex{it:(c)} and step function{it:(s)}.{p_end}
-
-{synopt:{opt growth(numlist)}} Growth in the mean of the entire distribution.{p_end}
+{synopt:{opt growth(numlist)}} Growth in the mean of the entire distribution. Could be a vector of growth rates of the same lenght as the number of repetitions.{p_end}
 
 {synopt:{opt premium(numlist)}} Growth premium, the percentage point (pp) difference in the growth rate between the poorest {it:X%} given in {it:bottom()} and the growth rate of the overall mean.{p_end}
+
+{synopt:{opt gini(numlist)}} Growth in gini. should not be combined with {opt premium}.{p_end}
 
 {synopt:{opt repetitions(numlist)}} Number of periods (e.g. {it:years}) to repeat the simulation.{p_end}
 
 {syntab:{help povsim##optional:Optional}}
 
+{synopt:{opt pass:through(numlist)}} Passthrough rate i.e. the share of growth observed in national accounts that gets reflected in household level data. The acceptable range is >0 and <=2.{p_end}
+
 {synopt:{opt bottom(numlist)}} Bottom {it:X%} group to which the growth premium {it:(premium)} should be applied. Default is bottom 40%.{p_end}
 
-{synopt:{opt obs(numlist)}} The number of observations that should be generated when using {it:ungroup} or the number of {it:fractiles} to be generated if collapsing the distribution before running simulations. {p_end}
-
-{synopt:{opt ungroup}} Disaggregation of aggregated (grouped) data using {it:ungroup} command.{p_end}
-
-{synopt:{opt mean(numlist)}} Set mean of welfare distribution ({it:varname}) for data types {it:share} or {it:sharecum}. {p_end}
-
 {synopt:{opt varmean(numlist)}} Specify variable containing mean of welfare distribution ({it:varname}) for data types {it:share} or {it:sharecum}. {p_end} 
-
-{synopt:{opt groupvar(varname)}} For {it:sharecum} data, specify the variable containing the vector of percentiles (groups) corresponding to the cumulative shares in {it:varname}.{p_end}
 
 {synopt:{opt poverty(string)}} Estimate poverty headcount rate for each period of simulated data. {it:String} contains the file name with resulting poverty estimates.{p_end}
 
@@ -87,10 +81,6 @@ simulated distributions and stored.
 {marker mandatory}{...}
 {dlgtab: Mandatory}
 
-{phang} {* TYPE *}
-{opt type(welfare|share|sharecum)} The type of data contained in {it:varname}. Use welfare for micro/survey data. {it:Welfare} refers to cases where {it:varname} contains either income or expenditure and is typically used with microdata. If the 
-data contains distributional shares (e.g. quintile or decile shares), select {it:share}. For data with cumulative shares (e.g. points of a Lorenz curve), use {it:sharecum}. See examples for more. 
-
 {phang} {* GIC *}
  {opt gic(l|c|s)} Functional form of growth incidence curve (GIC) to be simulated. Linear {it:(l)}, convex {it:(c)} or step function {it:(s)}. See Lakner, Negre, and Prydz (2014) for details. 
 
@@ -99,16 +89,20 @@ increases proportionally with the rank.{p_end}
 
 {p 8 10}Convex {it:(c)}: The final welfare variable is obtained as a combination of an overall growth rate, and a tax and transfer system with a single proportional tax and an equal absolute transfer.{p_end}
 
-{p 8 10}Step function {it:(s)}: This GIC involves a discontinuity at {it:X}. For those in the bottom {it:X%} income will grow at a rate equal to the sum of overall growth {it:(growth)} and the premium {it:(premium)}. {p_end}
-
 {phang} {* GROWTH *}
-{opt growth(numlist)} Growth in the mean of the entire distribution. In Lakner, Negre and Prydz (2014) a country's annualized growth rate for either the last 10 or 20 years was used. Values should be specified in numeric rather than in percentage format. For instance, a growth rate of 5% should be given as 0.05. The range of values allowed is between -0.20(-20%) and 0.20 (20%).{p_end}
+{opt growth(numlist)} Growth in the mean of the entire distribution. In Lakner, Negre and Prydz (2014) a country's annualized growth rate for either the last 10 or 20 years was used. Values should be specified in numeric rather than in percentage format. For instance, a growth rate of 5% should be given as 0.05. The range of values allowed is between -0.20(-20%) and 0.20 (20%). Could be a vector of growth rates of the same lenght as the number of repetitions. {p_end}
 
 {phang} {* premium *}
 {opt premium(numlist)} Growth premium, the percentage point (pp) difference in the growth rate of the mean of the poorest {it:X%} and of the overall mean and can be negative. This value was referred to as shared prosperity premium {it:(m)} in Lakner, Negre, and Prydz (2014). The range of values allowed is between -0.20 (-20 pp) and 0.20 (20 pp).{p_end}
 
+{phang} {* Gini *}
+{opt gini(numlist)} Alternativetly to using the shared prosperity premium, the overall change of gini can be set using the option {opt gini}. Notice that {opt gini} and {opt premium} can not be set at the same time. {p_end}
+
 {phang} {* REPETITIONS *}
 {opt repetitions(numlist)} Number of periods (e.g. {it:years}) to repeat the simulation. The maximum number of repetitions allowed is 50. 
+
+{phang} {* PASSTHROUGH *}
+{opt pass:through(numlist)} Passthrough rate i.e. the share of growth observed in national accounts that gets reflected in household level data. The acceptable range is >0 and <=2.
 
 {marker optional}{...}
 {dlgtab:Optional}
@@ -120,19 +114,8 @@ increases proportionally with the rank.{p_end}
 {opt obs(numlist)} The number of observations that should be generated when using {it:ungroup} or the number of {it:fractiles} to be generated if collapsing the distribution before running simulations. If nothing is specified the simulation will 
 be done on the data in memory without any modification.
 
-{phang} {* UNGROUP *}
-{opt ungroup} Disaggregation of grouped data using {it:ungroup} command. Requires ungroup to be installed. If it is not installed, user will be prompted to install ungroup from {browse "http://dasp.ecn.ulaval.ca/":link}. Ungroup is run with 
-default parameters, a lognormal Lorenz curve and 1000 points using the Shorrocks Wan(2008) adjustment. 
-
-{phang} {* MEAN *}
-{opt mean(numlist)} Set mean of welfare distribution ({it:varname}) for data types {it:share} or {it:sharecum}. 
-
 {phang} {* VARMEAN *}
 {opt varmean(numlist)} Specify variable containing mean of welfare distribution ({it:varname}) for data types {it:share} or {it:sharecum}. 
-
-{phang} {* GROUPVAR *}
-{opt groupvar(varname)} For {it:sharecum} data, specify the variable containing the vector of percentiles (groups) corresponding to the cumulative shares in {it:varname}. If not specified, command assumes data is provided for groups of equal size 
-(i.e. if 10 observations assume deciles).
 
 {phang} {* POVERTY *}
 {opt poverty(string)} If this option is specified, the poverty headcount ratio is estimated for each period of the simulated data. {it:String} refers to the name of the dataset where the poverty estimates are stored. Baseline and final poverty 
@@ -163,16 +146,15 @@ estimates are printed in the result screen and stored in r().
 
 {dlgtab: Welfare (micro) data}
 
-{p 8 12} use http://eprydz.com/povsim/data_micro.dta, clear {p_end}
-{p 8 12} povsim pcexp [w=weight], type(welfare) gic(l) growth(0.034) premium(0.02) repetitions(15) bottom(30) obs(1000) name(datafile) poverty(povertyfile) line(1.90) replace {p_end}
+{p 8 12} use https://www.espenprydz.com/povsim/data_micro.dta {p_end}
+{p 8 12} povsim pcexp [aw=weight], gic(l) growth(0.034) premium(0.02) repetitions(15) bottom(30) obs(1000) name(datafile) poverty(povertyfile) line(1.90) replace {p_end}
 
 {pstd}This example uses a micro dataset with per capita expenditure stored in pcexp. The distribution is simulated over 15 periods, using a linear GIC with mean growth of 3.4% and a growth premium of 2% for the poorest 30% of the population. 
 Poverty is estimated for the 1.90 line and stored in the file povertyfile.dta. The simulated distributions are stored in datafile.dta. 
 
-{p 8 12} povsim pcexp [w=weight], type(welfare) gic(s) growth(0.03) premium(0.025) repetitions(10) obs(1000) poverty(povertyfile) line(1.90 3.10) replace adjustp(30) {p_end}
+{p 8 12} povsim pcexp [aw=weight], gic(l) growth(0.034) gini(0.02) repetitions(15) obs(1000) name(datafile) poverty(povertyfile) line(1.90) replace {p_end}
 
-{pstd}The micro data is collapsed to 1000 observations and simulated over 10 periods using a step function GIC with mean growth of 3% and a growth premium of 2.5% for the poorest 40% of the population. Poverty is estimated for the 1.90 and 3.10 
-lines and stored. The adjustment to ensure that the final premium (after re-ranking) is equal to the given premium, is done up to 30 times. Note that the final dataset only has 1,000 observations while the original data has 4,412 observations. 
+{pstd} Here we replicate the previous example but insted of using a shared properity premium, a change in gini is employed.
 
 {dlgtab: Share data}
 
@@ -181,16 +163,6 @@ lines and stored. The adjustment to ensure that the final premium (after re-rank
 
 {pstd} The above example uses a dataset of decile shares, which is ungrouped to 10,000 observations with the mean stored in varmean and simulated over 10 periods using a convex GIC with mean growth of 3% and a growth premium of negative 1% for 
 the bottom 40%. No poverty estimates are conducted. 
-
-{dlgtab: Cumulative share data}
-
-{p 8 12} use "http://eprydz.com/povsim/data_lorenz.dta", clear{p_end}
-{p 8 12} povsim L, type(sharecum) groupvar(p) gic(c) growth(0) premium(0.02) mean(4.27) repetitions(25) ungroup name(file) obs(500) poverty(povdatafile) line(3.10) replace  {p_end}
-
-{pstd} This example uses a cumulative distribution dataset from a Lorenz curve and applies a convex function GIC for the simulation. The percentiles is provided in the variable p and specified in groupvar(). The Lorenz curve distribution is 
-ungrouped to a 500 point distribution. 
-For {it:cumshare}, it is necessary to specify a mean value under the option {it:(mean)} or to specify a variable containing the mean value {it:(mean)}.
-
 
 {marker results}{...}
 {title:Stored results}
